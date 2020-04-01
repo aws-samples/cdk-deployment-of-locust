@@ -1,13 +1,11 @@
-## My Project
+this stack creates locust cluster for load testing
 
-TODO: Fill this README out!
+# contexts
+- vpcid:  required, id of the vpc to create the test cluster in
+- instancetype: optional, ec2 instance type to use in the cluster, default to c5.large
+- clustersize: optional, locust test cluster size, if set to 1, standalone mode will be used, otherwise master/slave mode will be used, default to 3
 
-Be sure to:
-
-* Change the title in this README
-* Edit your repository description on GitHub
-
-## License
-
-This library is licensed under the MIT-0 License. See the LICENSE file.
-
+example
+```
+cdk deploy -c vpcid=vpc-xxxxxxxx
+```

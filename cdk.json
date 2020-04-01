@@ -1,0 +1,7 @@
+{
+  "app": "python3 app.py",
+  "context": {
+    "instancetype": "c5.large",
+    "clustersize": 3
+  }
+}
