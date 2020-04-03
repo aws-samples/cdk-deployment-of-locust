@@ -3,6 +3,9 @@
   "context": {
     "instancetype": "c5.large",
     "clustersize": 3,
-    "locust_version": "0.13.5"
+    "locust_version": "0.13.5",
+    "no_web_ui": "False",
+    "locust_user_number": 100,
+    "locust_hatch_rate": 10
   }
 }

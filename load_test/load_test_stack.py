@@ -11,30 +11,72 @@ from aws_cdk import (
 
 
 class LoadTestStack(core.Stack):
-
+    
     def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
         
-        asset_bucket = self.prepare_s3_assets()
+        self.get_context()
         
-        master = self.create_ec2_cluster(asset_bucket)
+        self.asset_bucket = self.prepare_s3_assets()
+        
+        self.create_ec2_cluster()
         
         core.CfnOutput(self, "LocustAddress",
-            value=master.instance_public_dns_name,
+            value=self.master.instance_public_dns_name,
             description="The address of the locust master instance", 
             export_name="LocustAddress"
         )
-
-    def create_ec2_cluster(self, asset_bucket):
-        # get context
-        vpcid = self.node.try_get_context("vpcid")
-        instancetype = ec2.InstanceType(self.node.try_get_context("instancetype"))
-        clustersize = int(self.node.try_get_context("clustersize"))
-        locust_version = self.node.try_get_context("locust_version")
         
+    def get_context(self):
+        # get context
+        self.vpcid = self.node.try_get_context("vpcid")
+        self.instancetype = ec2.InstanceType(self.node.try_get_context("instancetype"))
+        self.clustersize = int(self.node.try_get_context("clustersize"))
+        self.locust_version = self.node.try_get_context("locust_version")
+        self.no_web_ui = (self.node.try_get_context("no_web_ui") == "True")
+        self.locust_user_number = int(self.node.try_get_context("locust_user_number"))
+        self.locust_hatch_rate = int(self.node.try_get_context("locust_hatch_rate"))
+        
+    def get_userdata(self, is_master):
+        # generate the ec2 userdata required
+        userdata = ec2.UserData.for_linux()
+        
+        userdata.add_commands("""
+                sudo yum -y install python-pip gcc
+                sudo python -m pip install locustio==%s
+                aws s3 cp s3://%s/locustfile.py .
+            """ % (self.locust_version, self.asset_bucket.bucket_name))
+        
+        # generate run command depends on the different mode
+        run_command = ""
+        # User data for master
+        if is_master:
+            # with web UI
+            if not self.no_web_ui:
+                # if there's only one instance, no need to run in master slave mode
+                run_command = "sudo locust -P 80 -f locustfile.py %s" % ("--master" if self.clustersize > 1 else "")
+            # without web UI
+            else:
+                if self.clustersize > 1:
+                    run_command = "sudo locust --no-web -c %s -r %s -f locustfile.py --expect-slaves %s" % (self.locust_user_number, self.locust_hatch_rate, self.clustersize - 1)
+                else:
+                    run_command = "sudo locust --no-web -c %s -r %s -f locustfile.py" % (self.locust_user_number, self.locust_hatch_rate)
+        # user data for slave
+        else:
+            # with web UI
+            if not self.no_web_ui:
+                run_command = "sudo locust -f locustfile.py --slave --master-host %s" % (self.master.instance_private_ip)
+            # without web UI
+            else:
+                run_command = "sudo locust -f locustfile.py --slave --master-host %s" % (self.master.instance_private_ip)
+        userdata.add_commands(run_command)
+        
+        return userdata
+
+    def create_ec2_cluster(self):
         # search for existing vpc
         vpc = ec2.Vpc.from_lookup(self, "VPC",
-            vpc_id=vpcid
+            vpc_id=self.vpcid
         )
         
         # use amazon linux 2
@@ -49,17 +91,10 @@ class LoadTestStack(core.Stack):
             assumed_by=iam.ServicePrincipal("ec2.amazonaws.com")
         )
         # give access to read s3 asset
-        asset_bucket.grant_read(role);
+        self.asset_bucket.grant_read(role);
         
         # master user data
-        mode = "--master" if clustersize > 1 else ""
-        master_userdata = ec2.UserData.for_linux()
-        master_userdata.add_commands("""
-            sudo yum -y install python-pip gcc
-            sudo python -m pip install locustio==%s
-            aws s3 cp s3://%s/locustfile.py .
-            sudo locust -P 80 -f locustfile.py %s
-        """ % (locust_version, asset_bucket.bucket_name, mode))
+        master_userdata = self.get_userdata(True)
         
         # master security group
         master_sg = ec2.SecurityGroup(self, "MasterSecurityGroup",
@@ -70,8 +105,8 @@ class LoadTestStack(core.Stack):
         master_sg.add_ingress_rule(ec2.Peer.any_ipv4(), ec2.Port.tcp(22), "allow ssh")
         
         # create master node
-        master = ec2.Instance(self, "Master", 
-            instance_type=instancetype, 
+        self.master = ec2.Instance(self, "Master", 
+            instance_type=self.instancetype, 
             vpc=vpc, 
             instance_name="locust-master",
             machine_image=ami,
@@ -81,15 +116,9 @@ class LoadTestStack(core.Stack):
         )
         
         # create slave nodes
-        if clustersize > 1:
+        if self.clustersize > 1:
             # slave user data
-            slave_userdata = ec2.UserData.for_linux()
-            slave_userdata.add_commands("""
-                sudo yum -y install python-pip gcc
-                sudo python -m pip install locustio==%s
-                aws s3 cp s3://%s/locustfile.py .
-                sudo locust -f locustfile.py --slave --master-host %s
-            """ % (locust_version, asset_bucket.bucket_name, master.instance_private_ip))
+            slave_userdata = self.get_userdata(False)
             
             # slave security group
             slave_sg = ec2.SecurityGroup(self, "SlaveSecurityGroup",
@@ -100,9 +129,9 @@ class LoadTestStack(core.Stack):
             master_sg.add_ingress_rule(slave_sg, ec2.Port.tcp(5557), "allow slave connection")
             
             # create slaves one by one
-            for i in range(clustersize - 1):
+            for i in range(self.clustersize - 1):
                 ec2.Instance(self, "Slave%s" % i, 
-                    instance_type=instancetype, 
+                    instance_type=self.instancetype, 
                     vpc=vpc, 
                     instance_name="locust-slave%s" % i,
                     machine_image=ami,
@@ -111,9 +140,6 @@ class LoadTestStack(core.Stack):
                     role=role,
                 )
                 
-        return master
-        
-        
         
     def prepare_s3_assets(self):
         asset_bucket = s3.Bucket(self, "AssetBucket")

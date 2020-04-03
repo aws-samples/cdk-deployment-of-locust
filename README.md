@@ -65,6 +65,9 @@ Expected result & run load test:
 - instancetype (optional): ec2 instance type to use in the cluster, default to c5.large
 - clustersize (optional): locust test cluster size, if set to 1, standalone mode will be used, otherwise master/slave mode will be used, default to 3
 - locust_version (optional): locust version to deploy, default is 0.13.5
+- no_web_ui (optional): run the locust cluster with or without web UI, default to False (with web UI)
+- locust_user_number (optional): number of locust users to run in the load test, default is 100
+- locust_hatch_rate (optional): number of users to hatch every second, default to 10
 
 example
 ```

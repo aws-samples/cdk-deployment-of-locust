@@ -7,12 +7,12 @@ import random
 from locust import HttpLocust, TaskSet, task, between
 
 class MyTaskSet(TaskSet):
-    # This task will 15 times for every 1000 runs of the above task
-    @task(15)
-    def about(self):
-        self.client.get("/blog")
+    @task(100)
+    def test(self):
+        self.client.get("/test")
 
 class MyLocust(HttpLocust):
     host = "http://dummy"
+
     task_set = MyTaskSet
     wait_time = between(1, 2)
