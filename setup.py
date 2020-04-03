@@ -22,11 +22,11 @@ setuptools.setup(
     packages=setuptools.find_packages(where="load_test"),
 
     install_requires=[
-        "aws-cdk.core",
-        "aws-cdk.aws-ec2",
-        "aws-cdk.aws-s3",
-        "aws-cdk.aws-s3-deployment",
-        "aws-cdk.aws-iam",
+        "aws-cdk.core~=1.0",
+        "aws-cdk.aws-ec2~=1.0",
+        "aws-cdk.aws-s3~=1.0",
+        "aws-cdk.aws-s3-deployment~=1.0",
+        "aws-cdk.aws-iam~=1.0",
     ],
 
     python_requires=">=3.6",

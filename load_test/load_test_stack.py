@@ -30,6 +30,7 @@ class LoadTestStack(core.Stack):
         vpcid = self.node.try_get_context("vpcid")
         instancetype = ec2.InstanceType(self.node.try_get_context("instancetype"))
         clustersize = int(self.node.try_get_context("clustersize"))
+        locust_version = self.node.try_get_context("locust_version")
         
         # search for existing vpc
         vpc = ec2.Vpc.from_lookup(self, "VPC",
@@ -55,10 +56,10 @@ class LoadTestStack(core.Stack):
         master_userdata = ec2.UserData.for_linux()
         master_userdata.add_commands("""
             sudo yum -y install python-pip gcc
-            sudo python -m pip install locustio==0.13.5
+            sudo python -m pip install locustio==%s
             aws s3 cp s3://%s/locustfile.py .
             sudo locust -P 80 -f locustfile.py %s
-        """ % (asset_bucket.bucket_name, mode))
+        """ % (locust_version, asset_bucket.bucket_name, mode))
         
         # master security group
         master_sg = ec2.SecurityGroup(self, "MasterSecurityGroup",
@@ -85,10 +86,10 @@ class LoadTestStack(core.Stack):
             slave_userdata = ec2.UserData.for_linux()
             slave_userdata.add_commands("""
                 sudo yum -y install python-pip gcc
-                sudo python -m pip install locustio==0.13.5
+                sudo python -m pip install locustio==%s
                 aws s3 cp s3://%s/locustfile.py .
                 sudo locust -f locustfile.py --slave --master-host %s
-            """ % (asset_bucket.bucket_name, master.instance_private_ip))
+            """ % (locust_version, asset_bucket.bucket_name, master.instance_private_ip))
             
             # slave security group
             slave_sg = ec2.SecurityGroup(self, "SlaveSecurityGroup",
