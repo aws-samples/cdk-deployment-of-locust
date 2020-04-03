@@ -21,10 +21,17 @@ class LoadTestStack(core.Stack):
         
         self.create_ec2_cluster()
         
+        # out put locust master instance info
         core.CfnOutput(self, "LocustAddress",
             value=self.master.instance_public_dns_name,
             description="The address of the locust master instance", 
             export_name="LocustAddress"
+        )
+        
+        core.CfnOutput(self, "LocustPrivateAddress",
+            value=self.master.instance_private_dns_name,
+            description="The private address of the locust master instance", 
+            export_name="LocustPrivateAddress"
         )
         
     def get_context(self):
