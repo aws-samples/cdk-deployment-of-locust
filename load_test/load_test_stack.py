@@ -21,28 +21,32 @@ class LoadTestStack(core.Stack):
         
         self.create_ec2_cluster()
         
-        # out put locust master instance info
-        core.CfnOutput(self, "LocustAddress",
-            value=self.master.instance_public_dns_name,
-            description="The address of the locust master instance", 
-            export_name="LocustAddress"
-        )
-        
-        core.CfnOutput(self, "LocustPrivateAddress",
-            value=self.master.instance_private_dns_name,
-            description="The private address of the locust master instance", 
-            export_name="LocustPrivateAddress"
-        )
+        if self.deploy_in_public_subnets:
+            # output locust master instance info
+            core.CfnOutput(self, "LocustAddress",
+                value=self.master.instance_public_dns_name,
+                description="The address of the locust master instance", 
+                export_name="LocustAddress"
+            )
+        else:
+            # output private address info
+            core.CfnOutput(self, "LocustPrivateAddress",
+                value=self.master.instance_private_dns_name,
+                description="The private address of the locust master instance", 
+                export_name="LocustPrivateAddress"
+            )
         
     def get_context(self):
         # get context
-        self.vpcid = self.node.try_get_context("vpcid")
+        self.vpc_cidr = self.node.try_get_context("vpc_cidr")
         self.instancetype = ec2.InstanceType(self.node.try_get_context("instancetype"))
         self.clustersize = int(self.node.try_get_context("clustersize"))
         self.locust_version = self.node.try_get_context("locust_version")
         self.no_web_ui = (self.node.try_get_context("no_web_ui") == "True")
         self.locust_user_number = int(self.node.try_get_context("locust_user_number"))
         self.locust_hatch_rate = int(self.node.try_get_context("locust_hatch_rate"))
+        # if no UI is required, create it in private subnets, # if ui is required, create it in public subnets
+        self.deploy_in_public_subnets = not self.no_web_ui
         
     def get_userdata(self, is_master):
         # generate the ec2 userdata required
@@ -81,11 +85,17 @@ class LoadTestStack(core.Stack):
         return userdata
 
     def create_ec2_cluster(self):
-        # search for existing vpc
-        vpc = ec2.Vpc.from_lookup(self, "VPC",
-            vpc_id=self.vpcid
+        # create a new VPC
+        vpc = ec2.Vpc(self, "TheVPC",
+            cidr=self.vpc_cidr
         )
         
+        # get subnets to create locust cluster in
+        if self.deploy_in_public_subnets:
+            subnets = ec2.SubnetSelection(subnets=vpc.public_subnets)
+        else:
+            subnets = ec2.SubnetSelection(subnets=vpc.private_subnets)
+                
         # use amazon linux 2
         ami = ec2.AmazonLinuxImage(
             generation=ec2.AmazonLinuxGeneration.AMAZON_LINUX_2,
@@ -120,6 +130,7 @@ class LoadTestStack(core.Stack):
             security_group=master_sg,
             user_data=master_userdata,
             role=role,
+            vpc_subnets=subnets,
         )
         
         # create slave nodes
@@ -145,6 +156,7 @@ class LoadTestStack(core.Stack):
                     security_group=slave_sg,
                     user_data=slave_userdata,
                     role=role,
+                    vpc_subnets=subnets,
                 )
                 
         

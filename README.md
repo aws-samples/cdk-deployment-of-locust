@@ -61,11 +61,11 @@ Expected result & run load test:
 
 
 # More configs
-- vpcid (required): id of the vpc to create the test cluster in
+- vpc_cidr (optional): cidr of the vpc created to run locust cluster. Make sure it doesn't conflic with CIDR of VPC to peer, if you are testing internal workloads. Default to 10.0.0.0/16
 - instancetype (optional): ec2 instance type to use in the cluster, default to c5.large
 - clustersize (optional): locust test cluster size, if set to 1, standalone mode will be used, otherwise master/slave mode will be used, default to 3
 - locust_version (optional): locust version to deploy, default is 0.13.5
-- no_web_ui (optional): run the locust cluster with or without web UI, default to False (with web UI)
+- no_web_ui (optional): run the locust cluster with or without web UI. In UI mode, locust cluster will be configured into public subnets. In no UI mode, it will be put into private subnets. default to False (with web UI)
 - locust_user_number (optional): number of locust users to run in the load test, default is 100
 - locust_hatch_rate (optional): number of users to hatch every second, default to 10
 

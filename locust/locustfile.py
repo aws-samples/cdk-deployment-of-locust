@@ -9,10 +9,10 @@ from locust import HttpLocust, TaskSet, task, between
 class MyTaskSet(TaskSet):
     @task(100)
     def test(self):
-        self.client.get("/test")
+        self.client.get("/Prod/test")
 
 class MyLocust(HttpLocust):
     host = "http://dummy"
-
+    host = "https://0r3nqio2fh.execute-api.ap-southeast-1.amazonaws.com"
     task_set = MyTaskSet
     wait_time = between(1, 2)
