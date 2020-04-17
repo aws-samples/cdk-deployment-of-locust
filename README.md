@@ -8,6 +8,8 @@ The tool itself is built on CDK and Locust.(https://locust.io/)
 ## Architecture diagram
 The below diagrams show how the architecture works in public mode and private mode.
 ![Public mode](/images/public_mode.png)
+<br/>
+<br/>
 ![Private mode](/images/private_mode.png)
 A new VPC is always created to host the locust test clusters.
 
