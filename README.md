@@ -94,6 +94,7 @@ The tool can be configured in command line, for example
 ```
 $ cdk deploy -c no_web_ui=True -c vpc_to_peer=vpc-xxxxxxxx -c vpc_to_peer_cidr=172.31.0.0/16
 ```
+
 ## Supported Parameters
 ### vpc_cidr (optional)
 - cidr of the vpc created to run locust cluster. 
@@ -190,6 +191,10 @@ cdk deploy -c vpc_to_peer=vpc-xxxxxxxx -c vpc_to_peer_cidr=172.31.0.0/16 -c no_w
 // In no web UI mode, load test will automatically run without triggering from the web interface.
 cdk deploy -c vpc_to_peer=vpc-xxxxxxxx -c vpc_to_peer_cidr=172.31.0.0/16 -c no_web_ui=True 
 ``` 
+
+## Write Your Own Locustfile 
+Modify your locust load test configuration in locust/locustfile.py  
+Please refer to https://docs.locust.io/en/stable/writing-a-locustfile.html for how to write locustfile
 
 # Others
 ## Useful CDK commands
