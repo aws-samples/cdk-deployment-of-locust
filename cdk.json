@@ -2,6 +2,8 @@
   "app": "python3 app.py",
   "context": {
     "vpc_cidr": "10.0.0.0/16",
+    "vpc_to_peer": "",
+    "vpc_to_peer_cidr": "",
     "instancetype": "c5.large",
     "clustersize": 3,
     "locust_version": "0.13.5",

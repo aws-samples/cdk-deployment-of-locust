@@ -62,6 +62,8 @@ Expected result & run load test:
 
 # More configs
 - vpc_cidr (optional): cidr of the vpc created to run locust cluster. Make sure it doesn't conflic with CIDR of VPC to peer, if you are testing internal workloads. Default to 10.0.0.0/16
+- vpc_to_peer (optional): vpc ID of the vpc to peer with the new VPC. It needs to be used with vpc_to_peer_cidr. Normally it is where you workload to test lies. default to an empty string 
+- vpc_to_peer_cidr (optional): cidr of the vpc to peer. It needs to be used with vpc_to_peer. default to empty string
 - instancetype (optional): ec2 instance type to use in the cluster, default to c5.large
 - clustersize (optional): locust test cluster size, if set to 1, standalone mode will be used, otherwise master/slave mode will be used, default to 3
 - locust_version (optional): locust version to deploy, default is 0.13.5

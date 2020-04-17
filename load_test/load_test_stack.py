@@ -1,5 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
+import random
 
 from aws_cdk import (
     core,
@@ -39,6 +40,8 @@ class LoadTestStack(core.Stack):
     def get_context(self):
         # get context
         self.vpc_cidr = self.node.try_get_context("vpc_cidr")
+        self.vpc_to_peer = self.node.try_get_context("vpc_to_peer")
+        self.vpc_to_peer_cidr = self.node.try_get_context("vpc_to_peer_cidr")
         self.instancetype = ec2.InstanceType(self.node.try_get_context("instancetype"))
         self.clustersize = int(self.node.try_get_context("clustersize"))
         self.locust_version = self.node.try_get_context("locust_version")
@@ -89,6 +92,11 @@ class LoadTestStack(core.Stack):
         vpc = ec2.Vpc(self, "TheVPC",
             cidr=self.vpc_cidr
         )
+        
+        # create vpc peering with existing vpc if needed
+        if self.vpc_to_peer:
+            self.create_vpc_peering(vpc)
+            
         
         # get subnets to create locust cluster in
         if self.deploy_in_public_subnets:
@@ -169,3 +177,37 @@ class LoadTestStack(core.Stack):
         )
         
         return asset_bucket
+        
+        
+    def create_vpc_peering(self, vpc):
+        # get peering vpc
+        peering_vpc = ec2.Vpc.from_lookup(self, "PeeringVPC", vpc_id=self.vpc_to_peer)
+        print(peering_vpc.public_subnets)
+        # create vpc peering
+        peering = ec2.CfnVPCPeeringConnection(self, "Peering", 
+                            peer_vpc_id=self.vpc_to_peer, 
+                            vpc_id=vpc.vpc_id)
+        vpc_peering_id = peering.ref
+        
+        # create vpc peering routing
+        self.add_peering_route(vpc, peering_vpc, vpc_peering_id, destination_cidr=self.vpc_to_peer_cidr)
+        self.add_peering_route(peering_vpc, vpc, vpc_peering_id)
+        
+    
+    def add_peering_route(self, vpc, destination_vpc, peering_id, destination_cidr=""):
+        route_table_ids = set()
+        # add public route table ids
+        for subnet in vpc.public_subnets:
+            route_table_ids.add(subnet.route_table.route_table_id)
+        # add private route table ids
+        for subnet in vpc.private_subnets:
+            route_table_ids.add(subnet.route_table.route_table_id)
+            
+        for rt_id in route_table_ids:
+            # if destination cidr doesn't have a forced value, use destination VPC's CIDR
+            # this is here because IVpcProxy created from Vpc.from_lookup() doesn't support vpc_cidr_block yet 
+            if not destination_cidr:
+                destination_cidr = destination_vpc.vpc_cidr_block
+            ec2.CfnRoute(self, 'PeerRoute%s' % random.getrandbits(32), route_table_id=rt_id, 
+                        destination_cidr_block=destination_cidr, 
+                        vpc_peering_connection_id=peering_id) 
