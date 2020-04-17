@@ -203,3 +203,7 @@ Please refer to https://docs.locust.io/en/stable/writing-a-locustfile.html for h
  * `cdk deploy`      deploy this stack to your default AWS account/region
  * `cdk diff`        compare deployed stack with current state
  * `cdk docs`        open CDK documentation
+
+
+# License
+This library is licensed under the MIT-0 License. See the LICENSE file.
