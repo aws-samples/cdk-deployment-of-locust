@@ -72,7 +72,7 @@ $ cdk deploy
 ```
 
 ## Expected result
-Default setup will spin a load test to test your public application. It creats a locust of 3(1 master, 2 slaves).
+Default setup will spin a load test to test your public application. It creats a locust of 3(1 master, 2 workers).
 You will see progress in your console when the load testing cluster is automatically setup.
 At the end, it outputs something like below
 ```
@@ -92,7 +92,7 @@ $ cdk destroy
 # Advanced Configs
 The tool can be configured in command line, for example
 ```
-$ cdk deploy -c no_web_ui=True -c vpc_to_peer=vpc-xxxxxxxx -c vpc_to_peer_cidr=172.31.0.0/16
+$ cdk deploy -c headless=True -c vpc_to_peer=vpc-xxxxxxxx -c vpc_to_peer_cidr=172.31.0.0/16
 ```
 
 ## Supported Parameters
@@ -115,56 +115,56 @@ cdk deploy -c instancetype=r5.large
 
 ### clustersize (optional)
 - locust test cluster size
-- if set to 1, standalone mode will be used, otherwise master/slave mode will be used
+- if set to 1, standalone mode will be used, otherwise master/worker mode will be used
 - default to 3
 ```
 // run locust in non-cluster mode
 cdk deploy -c clustersize=1
 
-// run locust in a cluster of 4 slaves 1 master
+// run locust in a cluster of 4 workers 1 master
 cdk deploy -c clustersize=5
 ``` 
 
 ### locust_version (optional)
 - locust version to deploy
-- default is 0.13.5
+- default is 1.4.3
 ```
-// run locust version 0.11.1
-cdk deploy -c locust_version=0.11.1
+// run locust version 1.4.2
+cdk deploy -c locust_version=1.4.2
 ``` 
 
-### no_web_ui (optional)
+### headless (optional)
 - run the locust cluster with or without web UI. 
 - In UI mode, locust cluster will be configured into public subnets. In no UI mode, it will be put into private subnets. 
 - default to False (with web UI)
 ```
 // run locust without web UI, the test will automatically start itself
 // locust cluster is set up in private subnet in this mode
-cdk deploy -c no_web_ui=True
+cdk deploy -c headless=True
 
 // run locust with web UI, you can access the UI via public address output 
 // locust cluster is set up in public subnet in this mode
-cdk deploy -c no_web_ui=False
+cdk deploy -c headless=False
 ``` 
 
 ### locust_user_number(optional)
 - number of locust users to run in the load test
-- this parameter only works in no_web_ui mode
+- this parameter only works in headless mode
 - default is 100
 ```
 // run locust in command mode, test will automatically start itself
 // it will hatch 20 users per second until it reaches 200
-cdk deploy -c no_web_ui=True -c locust_user_number=200 -c locust_hatch_rate=20
+cdk deploy -c headless=True -c locust_user_number=200 -c locust_hatch_rate=20
 ``` 
 
 ### locust_hatch_rate (optional)
 - number of users to hatch every second
-- this parameter only works in no_web_ui mode
+- this parameter only works in headless mode
 - default to 10
 ```
 // run locust in command mode, test will automatically start itself
 // it will hatch 20 users per second until it reaches 200
-cdk deploy -c no_web_ui=True -c locust_user_number=200 -c locust_hatch_rate=20
+cdk deploy -c headless=True -c locust_user_number=200 -c locust_hatch_rate=20
 ``` 
 
 ### vpc_to_peer (optional)
@@ -177,7 +177,7 @@ cdk deploy -c no_web_ui=True -c locust_user_number=200 -c locust_hatch_rate=20
 // workload to test is running in VPC with ID vpc-xxxxxxx, it has a CIDR of 172.31.0.0/16
 // VPC peer will be created between the target VPC and locust cluster VPC
 // In no web UI mode, load test will automatically run without triggering from the web interface. 
-cdk deploy -c vpc_to_peer=vpc-xxxxxxxx -c vpc_to_peer_cidr=172.31.0.0/16 -c no_web_ui=True 
+cdk deploy -c vpc_to_peer=vpc-xxxxxxxx -c vpc_to_peer_cidr=172.31.0.0/16 -c headless=True 
 ``` 
 
 ### vpc_to_peer_cidr (optional)
@@ -189,7 +189,7 @@ cdk deploy -c vpc_to_peer=vpc-xxxxxxxx -c vpc_to_peer_cidr=172.31.0.0/16 -c no_w
 // workload to test is running in VPC with ID vpc-xxxxxxx, it has a CIDR of 172.31.0.0/16
 // VPC peer will be created between the target VPC and locust cluster VPC
 // In no web UI mode, load test will automatically run without triggering from the web interface.
-cdk deploy -c vpc_to_peer=vpc-xxxxxxxx -c vpc_to_peer_cidr=172.31.0.0/16 -c no_web_ui=True 
+cdk deploy -c vpc_to_peer=vpc-xxxxxxxx -c vpc_to_peer_cidr=172.31.0.0/16 -c headless=True 
 ``` 
 
 ## Write Your Own Locustfile 

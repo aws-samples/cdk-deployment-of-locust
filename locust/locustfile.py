@@ -4,14 +4,11 @@
 import os
 import string
 import random
-from locust import HttpLocust, TaskSet, task, between
+from locust import HttpUser, task, between
 
-class MyTaskSet(TaskSet):
+class MyLocust(HttpUser):
+    host = "http://dummy"
+    wait_time = between(1, 2)
     @task(100)
     def test(self):
         self.client.get("/")
-
-class MyLocust(HttpLocust):
-    host = "http://dummy"
-    task_set = MyTaskSet
-    wait_time = between(1, 2)

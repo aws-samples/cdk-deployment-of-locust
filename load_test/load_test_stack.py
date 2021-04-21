@@ -45,19 +45,21 @@ class LoadTestStack(core.Stack):
         self.instancetype = ec2.InstanceType(self.node.try_get_context("instancetype"))
         self.clustersize = int(self.node.try_get_context("clustersize"))
         self.locust_version = self.node.try_get_context("locust_version")
-        self.no_web_ui = (self.node.try_get_context("no_web_ui") == "True")
+        self.headless = (self.node.try_get_context("headless") == "True")
         self.locust_user_number = int(self.node.try_get_context("locust_user_number"))
         self.locust_hatch_rate = int(self.node.try_get_context("locust_hatch_rate"))
         # if no UI is required, create it in private subnets, # if ui is required, create it in public subnets
-        self.deploy_in_public_subnets = not self.no_web_ui
+        self.deploy_in_public_subnets = not self.headless
         
     def get_userdata(self, is_master):
         # generate the ec2 userdata required
         userdata = ec2.UserData.for_linux()
         
+        # Scripts entered as user data are run as the root user, so do not use the sudo command in the script.
+        # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html#user-data-shell-scripts
         userdata.add_commands("""
-                sudo yum -y install python-pip gcc
-                sudo python -m pip install locustio==%s
+                yum -y install python3 python3-devel gcc
+                pip3 install locust==%s
                 aws s3 cp s3://%s/locustfile.py .
             """ % (self.locust_version, self.asset_bucket.bucket_name))
         
@@ -66,23 +68,23 @@ class LoadTestStack(core.Stack):
         # User data for master
         if is_master:
             # with web UI
-            if not self.no_web_ui:
-                # if there's only one instance, no need to run in master slave mode
-                run_command = "sudo locust -P 80 -f locustfile.py %s" % ("--master" if self.clustersize > 1 else "")
+            if not self.headless:
+                # if there's only one instance, no need to run in master worker mode
+                run_command = "locust --web-port 80 --locustfile locustfile.py %s" % ("--master" if self.clustersize > 1 else "")
             # without web UI
             else:
                 if self.clustersize > 1:
-                    run_command = "sudo locust --no-web -c %s -r %s -f locustfile.py --expect-slaves %s" % (self.locust_user_number, self.locust_hatch_rate, self.clustersize - 1)
+                    run_command = "locust --headless --users %s --spawn-rate %s --locustfile locustfile.py --expect-workers %s" % (self.locust_user_number, self.locust_hatch_rate, self.clustersize - 1)
                 else:
-                    run_command = "sudo locust --no-web -c %s -r %s -f locustfile.py" % (self.locust_user_number, self.locust_hatch_rate)
-        # user data for slave
+                    run_command = "locust --headless --users %s --spawn-rate %s --locustfile locustfile.py" % (self.locust_user_number, self.locust_hatch_rate)
+        # user data for worker
         else:
             # with web UI
-            if not self.no_web_ui:
-                run_command = "sudo locust -f locustfile.py --slave --master-host %s" % (self.master.instance_private_ip)
+            if not self.headless:
+                run_command = "locust --locustfile locustfile.py --worker --master-host %s" % (self.master.instance_private_ip)
             # without web UI
             else:
-                run_command = "sudo locust -f locustfile.py --slave --master-host %s" % (self.master.instance_private_ip)
+                run_command = "locust --locustfile locustfile.py --worker --master-host %s" % (self.master.instance_private_ip)
         userdata.add_commands(run_command)
         
         return userdata
@@ -116,7 +118,7 @@ class LoadTestStack(core.Stack):
             assumed_by=iam.ServicePrincipal("ec2.amazonaws.com")
         )
         # give access to read s3 asset
-        self.asset_bucket.grant_read(role);
+        self.asset_bucket.grant_read(role)
         
         # master user data
         master_userdata = self.get_userdata(True)
@@ -141,28 +143,28 @@ class LoadTestStack(core.Stack):
             vpc_subnets=subnets,
         )
         
-        # create slave nodes
+        # create worker nodes
         if self.clustersize > 1:
-            # slave user data
-            slave_userdata = self.get_userdata(False)
+            # worker user data
+            worker_userdata = self.get_userdata(False)
             
-            # slave security group
-            slave_sg = ec2.SecurityGroup(self, "SlaveSecurityGroup",
+            # worker security group
+            worker_sg = ec2.SecurityGroup(self, "workerSecurityGroup",
                 vpc=vpc,
                 allow_all_outbound=True
             )
-            slave_sg.add_ingress_rule(ec2.Peer.any_ipv4(), ec2.Port.tcp(22), "allow ssh")
-            master_sg.add_ingress_rule(slave_sg, ec2.Port.tcp(5557), "allow slave connection")
+            worker_sg.add_ingress_rule(ec2.Peer.any_ipv4(), ec2.Port.tcp(22), "allow ssh")
+            master_sg.add_ingress_rule(worker_sg, ec2.Port.tcp(5557), "allow worker connection")
             
-            # create slaves one by one
+            # create workers one by one
             for i in range(self.clustersize - 1):
-                ec2.Instance(self, "Slave%s" % i, 
+                ec2.Instance(self, "worker%s" % i, 
                     instance_type=self.instancetype, 
                     vpc=vpc, 
-                    instance_name="locust-slave%s" % i,
+                    instance_name="locust-worker%s" % i,
                     machine_image=ami,
-                    security_group=slave_sg,
-                    user_data=slave_userdata,
+                    security_group=worker_sg,
+                    user_data=worker_userdata,
                     role=role,
                     vpc_subnets=subnets,
                 )
