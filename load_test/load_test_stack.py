@@ -59,10 +59,9 @@ class LoadTestStack(core.Stack):
         # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html#user-data-shell-scripts
         userdata.add_commands("""
                 yum -y install python3 python3-devel gcc
-                pip3 install locust==%s
+                pip3 install locust%s
                 aws s3 cp s3://%s/locustfile.py .
-            """ % (self.locust_version, self.asset_bucket.bucket_name))
-        
+            """ % ("=="+self.locust_version if self.locust_version else "", self.asset_bucket.bucket_name))
         # generate run command depends on the different mode
         run_command = ""
         # User data for master

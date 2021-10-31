@@ -6,7 +6,7 @@
     "vpc_to_peer_cidr": "",
     "instancetype": "c5.large",
     "clustersize": 3,
-    "locust_version": "1.4.3",
+    "locust_version": "",
     "headless": "False",
     "locust_user_number": 100,
     "locust_hatch_rate": 10
